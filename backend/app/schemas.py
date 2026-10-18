@@ -152,6 +152,9 @@ class InspectionResponse(BaseModel):
     reviewed_at: Optional[datetime] = None
     reviewed_by: Optional[str] = None
     created_at: datetime
+    photos: List[str] = []
+    photo_count: int = 0
+    findings: List[FindingResponse] = []
 
     class Config:
         from_attributes = True

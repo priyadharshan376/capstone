@@ -22,6 +22,24 @@ from app.auth import get_current_user, require_role, log_audit_event
 router = APIRouter(prefix="/inspections", tags=["Inspections"])
 
 def build_inspection_response(insp: Inspection) -> dict:
+    findings_list = []
+    photos = []
+    if insp.findings:
+        for f in insp.findings:
+            if f.photo_url and f.photo_url.strip() and f.photo_url not in photos:
+                photos.append(f.photo_url)
+            findings_list.append({
+                "id": f.id,
+                "checklist_item_id": f.checklist_item_id,
+                "question_text": f.checklist_item.question_text if f.checklist_item else f"Question #{f.checklist_item_id}",
+                "status": f.status,
+                "notes": f.notes,
+                "photo_url": f.photo_url,
+                "gps_lat": f.gps_lat,
+                "gps_lng": f.gps_lng,
+                "captured_at": f.captured_at
+            })
+
     return {
         "id": insp.id,
         "facility_id": insp.facility_id,
@@ -39,7 +57,10 @@ def build_inspection_response(insp: Inspection) -> dict:
         "supervisor_feedback": insp.supervisor_feedback,
         "reviewed_at": insp.reviewed_at,
         "reviewed_by": insp.reviewed_by,
-        "created_at": insp.created_at
+        "created_at": insp.created_at,
+        "photos": photos,
+        "photo_count": len(photos),
+        "findings": findings_list
     }
 
 @router.get("", response_model=List[InspectionResponse])
@@ -422,6 +443,7 @@ def export_inspection_dossier(
             "rating": "CRITICAL" if fail_count >= 3 else ("SATISFACTORY" if fail_count == 0 else "ACTION REQUIRED")
         },
         "geofence": geofence,
+        "photos": list(dict.fromkeys([f.photo_url for f in insp.findings if f.photo_url and f.photo_url.strip()])),
         "findings": findings_data
     }
 

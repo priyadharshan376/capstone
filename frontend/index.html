@@ -255,6 +255,29 @@
         </div>
       </div>
 
+      <!-- LIVE FIELD EVIDENCE PHOTO GALLERY -->
+      <div id="live-photo-gallery-card" class="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-2xl p-5 shadow-lg border border-slate-700/60 space-y-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-2.5">
+            <div class="w-9 h-9 rounded-xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center border border-indigo-500/30">
+              <i data-lucide="camera" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h3 class="font-bold text-white text-base">Field Photographic Proof Stream</h3>
+              <p class="text-xs text-indigo-300/80">Tamper-evident photos uploaded live from inspector mobile devices</p>
+            </div>
+          </div>
+          <span id="gallery-photo-counter" class="text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center space-x-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span id="gallery-count-text">Scanning evidence...</span>
+          </span>
+        </div>
+
+        <div id="live-photo-gallery-items" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 pt-1">
+          <!-- Dynamically populated via renderLivePhotoGallery() -->
+        </div>
+      </div>
+
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <div>
@@ -275,6 +298,7 @@
                 <th class="py-3 px-6">Target Date</th>
                 <th class="py-3 px-6">Priority</th>
                 <th class="py-3 px-6">Status</th>
+                <th class="py-3 px-6">Evidence Photo</th>
                 <th class="py-3 px-6 text-right">Actions</th>
               </tr>
             </thead>
@@ -640,8 +664,18 @@
     // CLIENT STATE & CACHE
     // -------------------------------------------------------------
     const API_BASE_KEY = 'smart_inspection_api_base';
-    let API_BASE = localStorage.getItem(API_BASE_KEY) || 'http://127.0.0.1:8000';
+    let API_BASE = localStorage.getItem(API_BASE_KEY) || (window.location.protocol.startsWith('http') ? window.location.origin : 'http://127.0.0.1:8000');
     let AUTH_TOKEN = null;
+
+    function getFullPhotoUrl(url) {
+      if (!url) return '';
+      if (url.startsWith('http://') || url.startsWith('https://')) return url;
+      const cleanPath = url.startsWith('/') ? url : `/${url}`;
+      if (window.location.protocol.startsWith('http')) {
+        return cleanPath;
+      }
+      return `${API_BASE}${cleanPath}`;
+    }
 
     let facilitiesMap = null;
     let reviewGeofenceMap = null;
@@ -1022,17 +1056,22 @@
       if (filtered.length === 0) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="6" class="py-8 text-center text-slate-400">
+            <td colspan="7" class="py-8 text-center text-slate-400">
               <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 text-slate-300"></i>
               <p>No matching inspections found in queue.</p>
             </td>
           </tr>
         `;
+        renderLivePhotoGallery();
         lucide.createIcons();
         return;
       }
 
-      tbody.innerHTML = filtered.map(i => `
+      tbody.innerHTML = filtered.map(i => {
+        const rawPhotos = (i.photos && i.photos.length > 0) ? i.photos : ((i.findings || []).map(f => f.photo_url).filter(p => p));
+        const uniquePhotos = [...new Set(rawPhotos)];
+
+        return `
         <tr class="hover:bg-slate-50/80 transition-all">
           <td class="py-4 px-6">
             <div class="font-bold text-slate-900">#${i.id} - ${i.facility_name || 'Site Inspection'}</div>
@@ -1058,6 +1097,30 @@
               ${i.status.replace('_', ' ')}
             </span>
           </td>
+          <td class="py-4 px-6">
+            ${uniquePhotos.length > 0 ? `
+              <div class="flex items-center space-x-2.5">
+                <a href="${getFullPhotoUrl(uniquePhotos[0])}" target="_blank" class="block relative group shrink-0" title="Click to view full photo evidence">
+                  <img src="${getFullPhotoUrl(uniquePhotos[0])}" class="w-10 h-10 object-cover rounded-xl border border-slate-200 shadow-xs group-hover:scale-105 transition-transform" />
+                  <div class="absolute inset-0 bg-black/40 rounded-xl opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                    <i data-lucide="zoom-in" class="w-3.5 h-3.5 text-white"></i>
+                  </div>
+                </a>
+                <div class="leading-tight">
+                  <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    <i data-lucide="camera" class="w-3 h-3"></i>
+                    <span>${uniquePhotos.length} Photo${uniquePhotos.length > 1 ? 's' : ''}</span>
+                  </span>
+                  <div class="text-[9px] text-slate-400 mt-0.5">Mobile upload</div>
+                </div>
+              </div>
+            ` : `
+              <span class="inline-flex items-center space-x-1 text-slate-400 text-xs">
+                <i data-lucide="image-off" class="w-3.5 h-3.5 text-slate-300"></i>
+                <span class="text-[11px]">No photo</span>
+              </span>
+            `}
+          </td>
           <td class="py-4 px-6 text-right">
             <div class="flex items-center justify-end space-x-2">
               ${
@@ -1079,7 +1142,72 @@
             </div>
           </td>
         </tr>
-      `).join('');
+      `;
+      }).join('');
+
+      renderLivePhotoGallery();
+      lucide.createIcons();
+    }
+
+    function renderLivePhotoGallery() {
+      const container = document.getElementById('live-photo-gallery-items');
+      const counter = document.getElementById('gallery-count-text');
+      if (!container) return;
+
+      const itemsWithPhotos = [];
+      state.inspections.forEach(i => {
+        const rawPhotos = (i.photos && i.photos.length > 0) ? i.photos : ((i.findings || []).map(f => f.photo_url).filter(p => p));
+        const unique = [...new Set(rawPhotos)];
+        unique.forEach((photoUrl, idx) => {
+          itemsWithPhotos.push({
+            inspectionId: i.id,
+            facilityName: i.facility_name || `Facility #${i.facility_id}`,
+            inspectorName: i.inspector_name || 'Inspector',
+            photoUrl: photoUrl,
+            status: i.status,
+            date: i.submitted_at || i.scheduled_date
+          });
+        });
+      });
+
+      if (counter) {
+        counter.innerText = itemsWithPhotos.length > 0 ? `${itemsWithPhotos.length} Photo Evidence Uploaded` : 'Awaiting mobile photos';
+      }
+
+      if (itemsWithPhotos.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full py-6 text-center text-slate-400 border border-dashed border-slate-700/60 rounded-xl">
+            <i data-lucide="camera-off" class="w-7 h-7 mx-auto mb-1 text-slate-500"></i>
+            <p class="text-xs">No mobile photos uploaded yet. When an inspector attaches a camera photo from the mobile app, it appears here instantly.</p>
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      container.innerHTML = itemsWithPhotos.map((item, idx) => {
+        const fullUrl = getFullPhotoUrl(item.photoUrl);
+        return `
+          <div class="group relative bg-slate-800/90 rounded-xl overflow-hidden border border-slate-700/80 shadow-md hover:border-indigo-400 transition-all flex flex-col">
+            <a href="${fullUrl}" target="_blank" class="block relative aspect-video sm:aspect-square overflow-hidden bg-black" title="Click to open full photo">
+              <img src="${fullUrl}" alt="${item.facilityName}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+              <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-85 group-hover:opacity-100 flex items-end p-2 transition-opacity">
+                <span class="text-[10px] text-white flex items-center space-x-1 font-semibold truncate">
+                  <i data-lucide="zoom-in" class="w-3 h-3 text-indigo-300"></i>
+                  <span>Inspect #${item.inspectionId}</span>
+                </span>
+              </div>
+            </a>
+            <div class="p-2 text-[10px] space-y-0.5 flex-1 flex flex-col justify-between">
+              <div class="font-bold text-white truncate" title="${item.facilityName}">${item.facilityName}</div>
+              <div class="text-slate-400 flex items-center justify-between text-[9px] pt-1 border-t border-slate-700/50">
+                <span class="truncate">${item.inspectorName}</span>
+                <button onclick="openReviewModal(${item.inspectionId})" class="text-indigo-400 hover:text-indigo-300 font-bold ml-1">Review</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
 
       lucide.createIcons();
     }
@@ -1474,9 +1602,9 @@
       }
 
       // Check for attached photographic evidence
-      const rawPhotos = (insp.findings || [])
-        .map(f => f.photo_url)
-        .filter(p => p && p.trim().length > 0);
+      const rawPhotos = (insp.photos && insp.photos.length > 0) 
+        ? insp.photos 
+        : ((insp.findings || []).map(f => f.photo_url).filter(p => p && p.trim().length > 0));
       const uniquePhotos = [...new Set(rawPhotos)];
 
       let photoGalleryHtml = '';
@@ -1494,7 +1622,7 @@
             </div>
             <div class="flex flex-wrap gap-4">
               ${uniquePhotos.map(url => {
-                const fullUrl = url.startsWith('http') ? url : `${API_BASE}${url}`;
+                const fullUrl = getFullPhotoUrl(url);
                 return `
                   <a href="${fullUrl}" target="_blank" class="group relative block overflow-hidden rounded-xl border border-white/20 hover:border-brand-400 transition-all shadow-lg">
                     <img src="${fullUrl}" alt="Inspection Evidence" class="h-44 w-64 object-cover group-hover:scale-105 transition-all duration-300 bg-slate-950" />
@@ -1519,15 +1647,17 @@
           <div class="space-y-3">
             <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Itemized Checklist Evaluation Findings</h4>
             <div class="divide-y divide-slate-100 border border-slate-200 rounded-2xl bg-white overflow-hidden">
-              ${insp.findings.map((f, idx) => `
+              ${insp.findings.map((f, idx) => {
+                const fPhotoUrl = f.photo_url ? getFullPhotoUrl(f.photo_url) : null;
+                return `
                 <div class="p-3.5 flex items-start justify-between gap-4">
                   <div class="space-y-1">
                     <p class="text-xs font-semibold text-slate-900">${idx + 1}. ${f.question_text || f.question}</p>
                     <p class="text-[11px] text-slate-500">Note: ${f.notes || 'No specific issue observed.'}</p>
-                    ${f.photo_url ? `
+                    ${fPhotoUrl ? `
                       <div class="mt-2 flex items-center space-x-2">
-                        <a href="${f.photo_url.startsWith('http') ? f.photo_url : `${API_BASE}${f.photo_url}`}" target="_blank">
-                          <img src="${f.photo_url.startsWith('http') ? f.photo_url : `${API_BASE}${f.photo_url}`}" class="h-14 w-20 object-cover rounded-lg border border-slate-200 shadow-xs hover:opacity-90" />
+                        <a href="${fPhotoUrl}" target="_blank">
+                          <img src="${fPhotoUrl}" class="h-14 w-20 object-cover rounded-lg border border-slate-200 shadow-xs hover:opacity-90" />
                         </a>
                         <span class="text-[10px] font-semibold text-brand-600 flex items-center space-x-1">
                           <i data-lucide="image" class="w-3 h-3"></i>
@@ -1541,7 +1671,8 @@
                     f.status === 'FAIL' ? 'bg-red-100 text-red-800' : 'bg-slate-100 text-slate-700'
                   }">${f.status}</span>
                 </div>
-              `).join('')}
+              `;
+              }).join('')}
             </div>
           </div>
         `;
@@ -1728,6 +1859,7 @@
           score_percentage: 66.7,
           rating: "ACTION REQUIRED"
         },
+        photos: (insp.photos && insp.photos.length > 0) ? insp.photos : (insp.findings || []).map(f => f.photo_url).filter(p => p),
         findings: insp.findings || []
       };
 
@@ -1839,25 +1971,43 @@
 
         <!-- Photographic Evidence Section in Dossier -->
         ${(() => {
-          const photos = (d.findings || []).filter(f => f.photo_url && f.photo_url.trim().length > 0);
-          if (photos.length === 0) return '';
+          let photoUrls = [];
+          if (Array.isArray(d.photos) && d.photos.length > 0) {
+            photoUrls = d.photos;
+          } else if (Array.isArray(d.findings)) {
+            photoUrls = d.findings.map(f => f.photo_url).filter(p => p && p.trim().length > 0);
+          }
+          const uniquePhotos = [...new Set(photoUrls)];
+          if (uniquePhotos.length === 0) {
+            return `
+              <div class="p-4 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-center text-xs text-slate-500">
+                <i data-lucide="image-off" class="w-5 h-5 mx-auto mb-1 text-slate-400"></i>
+                No photographic evidence was uploaded for this inspection record.
+              </div>
+            `;
+          }
           return `
             <div class="space-y-3 pt-2">
               <h4 class="font-bold text-xs uppercase tracking-wider text-slate-500 flex items-center space-x-1.5">
                 <i data-lucide="camera" class="w-4 h-4 text-brand-600"></i>
-                <span>Photographic Evidence Attached (${photos.length})</span>
+                <span>Photographic Evidence Attached (${uniquePhotos.length} Photo${uniquePhotos.length > 1 ? 's' : ''})</span>
               </h4>
               <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-                ${photos.map((p, idx) => {
-                  const pUrl = p.photo_url.startsWith('http') ? p.photo_url : `${API_BASE}${p.photo_url.startsWith('/') ? '' : '/'}${p.photo_url}`;
+                ${uniquePhotos.map((url, idx) => {
+                  const pUrl = getFullPhotoUrl(url);
                   return `
                     <div class="border border-slate-200 rounded-xl overflow-hidden bg-slate-50 shadow-xs">
-                      <a href="${pUrl}" target="_blank" title="View Full Evidence Photo">
+                      <a href="${pUrl}" target="_blank" title="View Full Evidence Photo in High Resolution">
                         <img src="${pUrl}" alt="Evidence ${idx+1}" class="w-full h-36 object-cover hover:opacity-90 transition-opacity" />
                       </a>
-                      <div class="p-2.5 text-[10px] text-slate-600 bg-white border-t border-slate-100">
-                        <div class="font-bold text-slate-800">Evidence Photo #${idx+1}</div>
-                        <div class="truncate text-slate-500">${p.question_text || p.question || 'Inspection Finding'}</div>
+                      <div class="p-2.5 text-[10px] text-slate-600 bg-white border-t border-slate-100 flex items-center justify-between">
+                        <div>
+                          <div class="font-bold text-slate-800">Evidence Photo #${idx+1}</div>
+                          <div class="text-[9px] text-slate-400">Field Mobile Upload</div>
+                        </div>
+                        <a href="${pUrl}" target="_blank" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[10px] font-semibold">
+                          View
+                        </a>
                       </div>
                     </div>
                   `;
