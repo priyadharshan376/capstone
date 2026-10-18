@@ -143,8 +143,18 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(color: Colors.emerald.shade100, borderRadius: BorderRadius.circular(8)),
-                    child: Text('LOCKED', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.emerald.shade900)),
+                    decoration: BoxDecoration(
+                      color: _isGpsLocked ? Colors.green.shade100 : Colors.amber.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _isGpsLocked ? 'LOCKED' : 'ACQUIRING...',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: _isGpsLocked ? Colors.green.shade900 : Colors.amber.shade900,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -174,7 +184,7 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
                               onPressed: () => setState(() => _answers[q.id] = status),
                               style: OutlinedButton.styleFrom(
                                 backgroundColor: isSelected
-                                    ? (status == 'PASS' ? Colors.emerald : (status == 'FAIL' ? Colors.red : Colors.grey.shade700))
+                                    ? (status == 'PASS' ? Colors.green : (status == 'FAIL' ? Colors.red : Colors.grey.shade700))
                                     : Colors.white,
                                 foregroundColor: isSelected ? Colors.white : Colors.black87,
                                 side: BorderSide(color: isSelected ? Colors.transparent : Colors.grey.shade300),

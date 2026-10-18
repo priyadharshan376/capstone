@@ -61,7 +61,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.between,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Expanded(
                                 child: Text(
@@ -90,7 +90,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
                           Text(task.facilityCategory, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
                           const SizedBox(height: 12),
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.between,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text('Status: ${task.status}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                               ElevatedButton(
