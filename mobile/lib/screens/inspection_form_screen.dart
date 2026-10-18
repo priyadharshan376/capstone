@@ -117,17 +117,19 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
             Text('Confirm Submission', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('You are about to submit the formal inspection report for "${widget.task.facilityName}".'),
-            const SizedBox(height: 10),
-            Text('📍 GPS: ${_currentLat.toStringAsFixed(4)}, ${_currentLng.toStringAsFixed(4)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, fontFamily: 'monospace')),
-            Text('📋 Evaluated criteria: ${_questions.length} items', style: const TextStyle(fontSize: 12)),
-            if (_evidencePhoto != null)
-              const Text('📷 Geotagged photographic proof attached', style: TextStyle(fontSize: 12, color: Colors.green)),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('You are about to submit the formal inspection report for "${widget.task.facilityName}".'),
+              const SizedBox(height: 10),
+              Text('📍 GPS: ${_currentLat.toStringAsFixed(4)}, ${_currentLng.toStringAsFixed(4)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, fontFamily: 'monospace')),
+              Text('📋 Evaluated criteria: ${_questions.length} items', style: const TextStyle(fontSize: 12)),
+              if (_evidencePhoto != null)
+                const Text('📷 Geotagged photographic proof attached', style: TextStyle(fontSize: 12, color: Colors.green)),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -212,9 +214,10 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
       ),
       body: _isLoadingQuestions
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
+          : SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 36),
+                child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Facility Summary Banner
@@ -267,40 +270,49 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: const Color(0xFFC7D2FE)),
                     ),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.location_on, color: Color(0xFF4338CA), size: 28),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('200m Geofence Perimeter Lock', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF312E81))),
-                              Text('📍 ${_currentLat.toStringAsFixed(4)}, ${_currentLng.toStringAsFixed(4)}', style: const TextStyle(fontSize: 12, fontFamily: 'monospace', fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: _isGpsLocked ? Colors.green.shade100 : Colors.amber.shade100,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            _isGpsLocked ? 'LOCKED' : 'ACQUIRING...',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: _isGpsLocked ? Colors.green.shade900 : Colors.amber.shade900,
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.location_on, color: Color(0xFF4338CA), size: 20),
+                                SizedBox(width: 6),
+                                Text('200m Geofence Lock', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF312E81))),
+                              ],
                             ),
-                          ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: _isGpsLocked ? Colors.green.shade100 : Colors.amber.shade100,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                _isGpsLocked ? 'LOCKED' : 'ACQUIRING...',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: _isGpsLocked ? Colors.green.shade900 : Colors.amber.shade900,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        IconButton(
-                          icon: _isGpsLoading
-                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                              : const Icon(Icons.my_location, color: Color(0xFF4338CA)),
-                          tooltip: 'Re-acquire GPS',
-                          onPressed: _isGpsLoading ? null : _acquireGps,
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('📍 ${_currentLat.toStringAsFixed(4)}, ${_currentLng.toStringAsFixed(4)}', style: const TextStyle(fontSize: 12, fontFamily: 'monospace', fontWeight: FontWeight.bold)),
+                            TextButton.icon(
+                              onPressed: _isGpsLoading ? null : _acquireGps,
+                              icon: _isGpsLoading
+                                  ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2))
+                                  : const Icon(Icons.my_location, size: 14, color: Color(0xFF4338CA)),
+                              label: const Text('Refresh GPS', style: TextStyle(fontSize: 11, color: Color(0xFF4338CA))),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -418,7 +430,7 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
                                   child: OutlinedButton.icon(
                                     onPressed: () => _pickPhoto(ImageSource.camera),
                                     icon: const Icon(Icons.camera_alt, size: 16),
-                                    label: const Text('Take Camera Photo', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                    label: const Text('Camera', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                                     style: OutlinedButton.styleFrom(
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -430,7 +442,7 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
                                   child: OutlinedButton.icon(
                                     onPressed: () => _pickPhoto(ImageSource.gallery),
                                     icon: const Icon(Icons.photo_library, size: 16),
-                                    label: const Text('Choose Gallery', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                    label: const Text('Gallery', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                                     style: OutlinedButton.styleFrom(
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -480,10 +492,11 @@ class _InspectionFormScreenState extends State<InspectionFormScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
                 ],
               ),
             ),
+          ),
     );
   }
 }
