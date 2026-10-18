@@ -8,6 +8,10 @@ os.environ["DISABLE_SQLALCHEMY_CEXT"] = "1"
 # Add backend directory to sys.path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# Ensure UTF-8 console output for Windows cmd/powershell
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout.reconfigure(encoding='utf-8')
+
 from app.database import SessionLocal, engine, Base
 from app.models import (
     User, UserRole, Facility, RiskLevel, ChecklistTemplate, ChecklistItem,
