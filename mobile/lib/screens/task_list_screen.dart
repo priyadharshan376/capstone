@@ -397,36 +397,42 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
             // Bottom Row: Status and Action Button
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: isAssigned
-                            ? const Color(0xFFDBEAFE)
-                            : (task.status == 'SUBMITTED' ? const Color(0xFFF3E8FF) : const Color(0xFFDCFCE7)),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        task.status,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
                           color: isAssigned
-                              ? const Color(0xFF1E40AF)
-                              : (task.status == 'SUBMITTED' ? const Color(0xFF6B21A8) : const Color(0xFF166534)),
+                              ? const Color(0xFFDBEAFE)
+                              : (task.status == 'SUBMITTED' ? const Color(0xFFF3E8FF) : const Color(0xFFDCFCE7)),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          task.status,
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.bold,
+                            color: isAssigned
+                                ? const Color(0xFF1E40AF)
+                                : (task.status == 'SUBMITTED' ? const Color(0xFF6B21A8) : const Color(0xFF166534)),
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Due: ${task.scheduledDate.toLocal().toString().substring(0, 10)}',
-                      style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
-                    ),
-                  ],
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          'Due: ${task.scheduledDate.toLocal().toString().substring(0, 10)}',
+                          style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 if (isAssigned)
                   ElevatedButton.icon(
                     onPressed: () async {
@@ -438,24 +444,26 @@ class _TaskListScreenState extends State<TaskListScreen> {
                       );
                       _loadTasks();
                     },
-                    icon: const Icon(Icons.edit_document, size: 15),
-                    label: const Text('Begin Inspection', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    icon: const Icon(Icons.edit_document, size: 14),
+                    label: const Text('Start', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1D4ED8),
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      visualDensity: VisualDensity.compact,
                     ),
                   )
                 else
                   OutlinedButton.icon(
                     onPressed: () => _showSubmittedDetails(task),
-                    icon: const Icon(Icons.check_circle_outline, size: 15, color: Color(0xFF6B21A8)),
+                    icon: const Icon(Icons.check_circle_outline, size: 14, color: Color(0xFF6B21A8)),
                     label: const Text('Submitted', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF6B21A8))),
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: Color(0xFFD8B4FE)),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                      visualDensity: VisualDensity.compact,
                     ),
                   ),
               ],
