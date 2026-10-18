@@ -5,8 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/inspection.dart';
 
 class ApiService {
-  // Use 10.0.2.2 for Android Emulator, localhost for iOS or Web, or machine IP for physical device
-  static const String baseUrl = 'http://10.0.2.2:8000/api/v1';
+  // Machine local Wi-Fi IP for physical device (CPH2613) & fallback for emulator
+  static const String baseUrl = 'http://10.128.45.33:8000/api/v1';
 
   static Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
