@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -10,18 +11,41 @@ from app.routers import (
     facilities_router,
     checklists_router,
     inspections_router,
-    audit_router
+    audit_router,
+    analytics_router
 )
 
 # Auto-create database tables on startup
 Base.metadata.create_all(bind=engine)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Auto-seed check on startup
+    try:
+        from app.database import SessionLocal
+        from app.models import User
+        db = SessionLocal()
+        user_count = db.query(User).count()
+        db.close()
+        if user_count == 0:
+            import importlib.util
+            seed_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "seed.py"))
+            if os.path.exists(seed_path):
+                spec = importlib.util.spec_from_file_location("seed_module", seed_path)
+                seed_mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(seed_mod)
+                seed_mod.seed_database()
+    except Exception as e:
+        print(f"Startup auto-seed check notice: {e}")
+    yield
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
     description="Smart Inspection and Risk Prevention System - REST API for Field Inspection & Supervisor Governance",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
+    lifespan=lifespan
 )
 
 # Enable CORS for Web and Mobile development
@@ -47,6 +71,7 @@ app.include_router(facilities_router.router, prefix=settings.API_PREFIX)
 app.include_router(checklists_router.router, prefix=settings.API_PREFIX)
 app.include_router(inspections_router.router, prefix=settings.API_PREFIX)
 app.include_router(audit_router.router, prefix=settings.API_PREFIX)
+app.include_router(analytics_router.router, prefix=settings.API_PREFIX)
 
 @app.get("/", include_in_schema=False)
 def root():

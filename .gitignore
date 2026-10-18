@@ -30,6 +30,8 @@ venv.bak/
 
 # Database & Local Evidence Uploads
 *.db
+*.db-shm
+*.db-wal
 *.sqlite3
 backend/smart_inspection.db
 backend/uploads/*.jpg

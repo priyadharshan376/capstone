@@ -5,8 +5,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/inspection.dart';
 
 class ApiService {
-  // Machine local Wi-Fi IP for physical device (CPH2613) & fallback for emulator
-  static const String baseUrl = 'http://10.128.45.33:8000/api/v1';
+  // Machine local Wi-Fi IP for physical device & fallback for emulator
+  static const String defaultBaseUrl = 'http://10.128.45.33:8000/api/v1';
+
+  static Future<String> getBaseUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('custom_base_url') ?? defaultBaseUrl;
+  }
+
+  static Future<void> setBaseUrl(String url) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('custom_base_url', url.trim());
+  }
 
   static Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
@@ -21,12 +31,13 @@ class ApiService {
   }
 
   static Future<bool> login(String email, String password) async {
+    final baseUrl = await getBaseUrl();
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/auth/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email, 'password': password}),
-      );
+      ).timeout(const Duration(seconds: 4));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -35,14 +46,17 @@ class ApiService {
       }
       return false;
     } catch (e) {
-      // Offline / fallback mock login for demo purposes
+      // Offline / fallback mock login for demo resilience
       await saveToken('mock_jwt_token', 'Rajesh Sharma', 'inspector');
       return true;
     }
   }
 
   static Future<List<InspectionTask>> getMyInspections() async {
+    final baseUrl = await getBaseUrl();
     final token = await getToken();
+    final prefs = await SharedPreferences.getInstance();
+
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/inspections'),
@@ -50,20 +64,31 @@ class ApiService {
           'Content-Type': 'application/json',
           if (token != null) 'Authorization': 'Bearer $token',
         },
-      );
+      ).timeout(const Duration(seconds: 4));
 
       if (response.statusCode == 200) {
         final List list = jsonDecode(response.body);
+        // Cache to preferences for offline resilience
+        await prefs.setString('cached_inspections', response.body);
         return list.map((item) => InspectionTask.fromJson(item)).toList();
       }
-    } catch (_) {}
+    } catch (_) {
+      // Offline fallback: load from local cache if available
+      final cached = prefs.getString('cached_inspections');
+      if (cached != null) {
+        try {
+          final List list = jsonDecode(cached);
+          return list.map((item) => InspectionTask.fromJson(item)).toList();
+        } catch (_) {}
+      }
+    }
 
-    // Fallback seed tasks for live presentation
+    // Default fallback seed tasks for live presentation
     return [
       InspectionTask(
-        id: 101,
+        id: 1,
         facilityId: 1,
-        facilityName: 'Apex Chemical & Fertilizer Plant',
+        facilityName: 'Bharat Chemical Labs',
         facilityCategory: 'Chemical & Hazardous',
         templateId: 1,
         scheduledDate: DateTime.now(),
@@ -71,10 +96,10 @@ class ApiService {
         priority: 'HIGH',
       ),
       InspectionTask(
-        id: 102,
+        id: 2,
         facilityId: 2,
-        facilityName: 'Golden Harvest Food Processing Hub',
-        facilityCategory: 'Food Safety',
+        facilityName: 'Apex Cold Chain Logistics',
+        facilityCategory: 'Cold Chain Logistics',
         templateId: 2,
         scheduledDate: DateTime.now().subtract(const Duration(days: 1)),
         status: 'SUBMITTED',
@@ -84,6 +109,7 @@ class ApiService {
   }
 
   static Future<String?> uploadEvidencePhoto(int inspectionId, File file) async {
+    final baseUrl = await getBaseUrl();
     final token = await getToken();
     try {
       final request = http.MultipartRequest(
@@ -95,7 +121,7 @@ class ApiService {
       }
       request.files.add(await http.MultipartFile.fromPath('file', file.path));
 
-      final streamedResponse = await request.send();
+      final streamedResponse = await request.send().timeout(const Duration(seconds: 8));
       final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200) {
@@ -113,6 +139,7 @@ class ApiService {
     required String notes,
     required List<FindingSubmission> findings,
   }) async {
+    final baseUrl = await getBaseUrl();
     final token = await getToken();
     try {
       final response = await http.post(
@@ -127,7 +154,7 @@ class ApiService {
           'submission_lng': lng,
           'findings': findings.map((f) => f.toJson()).toList(),
         }),
-      );
+      ).timeout(const Duration(seconds: 6));
 
       return response.statusCode == 200;
     } catch (e) {

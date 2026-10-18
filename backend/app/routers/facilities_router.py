@@ -1,21 +1,33 @@
-from typing import List, Optional
+from typing import List, Optional, Any, Dict
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from app.database import get_db
-from app.models import Facility, User, UserRole
-from app.schemas import FacilityCreate, FacilityResponse
+from app.models import Facility, Inspection, User, UserRole
+from app.schemas import FacilityCreate, FacilityResponse, InspectionResponse
 from app.auth import get_current_user, require_role, log_audit_event
 
 router = APIRouter(prefix="/facilities", tags=["Facilities"])
 
 @router.get("", response_model=List[FacilityResponse])
 def get_facilities(
+    q: Optional[str] = Query(None, description="Search across name, license, address, category"),
     category: Optional[str] = Query(None),
     risk_level: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     query = db.query(Facility)
+    if q:
+        search_filter = f"%{q}%"
+        query = query.filter(
+            or_(
+                Facility.name.ilike(search_filter),
+                Facility.license_no.ilike(search_filter),
+                Facility.address.ilike(search_filter),
+                Facility.category.ilike(search_filter)
+            )
+        )
     if category:
         query = query.filter(Facility.category.ilike(f"%{category}%"))
     if risk_level:
@@ -32,6 +44,39 @@ def get_facility(
     if not fac:
         raise HTTPException(status_code=404, detail="Facility not found")
     return fac
+
+@router.get("/{facility_id}/history")
+def get_facility_inspection_history(
+    facility_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> List[Dict[str, Any]]:
+    """Returns chronological inspection records for a facility"""
+    fac = db.query(Facility).filter(Facility.id == facility_id).first()
+    if not fac:
+        raise HTTPException(status_code=404, detail="Facility not found")
+
+    inspections = (
+        db.query(Inspection)
+        .filter(Inspection.facility_id == facility_id)
+        .order_by(Inspection.scheduled_date.desc())
+        .all()
+    )
+
+    return [
+        {
+            "id": insp.id,
+            "scheduled_date": insp.scheduled_date,
+            "status": insp.status,
+            "priority": insp.priority,
+            "inspector_name": insp.inspector.full_name if insp.inspector else "Unassigned",
+            "findings_count": len(insp.findings),
+            "submitted_at": insp.submitted_at,
+            "reviewed_at": insp.reviewed_at,
+            "supervisor_feedback": insp.supervisor_feedback
+        }
+        for insp in inspections
+    ]
 
 @router.post("", response_model=FacilityResponse)
 def create_facility(

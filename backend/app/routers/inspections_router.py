@@ -1,9 +1,11 @@
 import os
+import math
 import random
 import uuid
 from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
@@ -43,7 +45,10 @@ def build_inspection_response(insp: Inspection) -> dict:
 @router.get("", response_model=List[InspectionResponse])
 def get_inspections(
     status: Optional[str] = Query(None),
+    priority: Optional[str] = Query(None),
+    facility_id: Optional[int] = Query(None),
     inspector_id: Optional[int] = Query(None),
+    q: Optional[str] = Query(None, description="Search across facility name, inspector name, or notes"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -55,8 +60,25 @@ def get_inspections(
     elif inspector_id:
         query = query.filter(Inspection.inspector_id == inspector_id)
 
+    if facility_id:
+        query = query.filter(Inspection.facility_id == facility_id)
+
+    if priority:
+        query = query.filter(Inspection.priority == priority.upper())
+
     if status:
         query = query.filter(Inspection.status == status.upper())
+
+    if q:
+        search_filter = f"%{q}%"
+        query = query.join(Facility, isouter=True).join(User, isouter=True).filter(
+            or_(
+                Facility.name.ilike(search_filter),
+                Facility.category.ilike(search_filter),
+                User.full_name.ilike(search_filter),
+                Inspection.submission_notes.ilike(search_filter)
+            )
+        )
 
     inspections = query.order_by(Inspection.scheduled_date.desc()).all()
     return [build_inspection_response(insp) for insp in inspections]
@@ -283,3 +305,123 @@ def review_inspection(
     )
 
     return build_inspection_response(insp)
+
+def calculate_haversine_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    R = 6371000.0  # Earth radius in meters
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lon2 - lon1)
+    a = (math.sin(delta_phi / 2.0) ** 2 +
+         math.cos(phi1) * math.cos(phi2) * (math.sin(delta_lambda / 2.0) ** 2))
+    c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
+    return R * c
+
+@router.get("/{inspection_id}/export")
+def export_inspection_dossier(
+    inspection_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    insp = db.query(Inspection).filter(Inspection.id == inspection_id).first()
+    if not insp:
+        raise HTTPException(status_code=404, detail="Inspection not found")
+
+    facility = insp.facility
+    inspector = insp.inspector
+    template = insp.template
+
+    findings_data = []
+    pass_count = 0
+    fail_count = 0
+    na_count = 0
+
+    for f in insp.findings:
+        if f.status == FindingStatus.PASS:
+            pass_count += 1
+        elif f.status == FindingStatus.FAIL:
+            fail_count += 1
+        elif f.status == FindingStatus.NA:
+            na_count += 1
+
+        findings_data.append({
+            "id": f.id,
+            "checklist_item_id": f.checklist_item_id,
+            "question_text": f.checklist_item.question_text if f.checklist_item else "",
+            "question_type": f.checklist_item.question_type if f.checklist_item else "pass_fail",
+            "is_required": f.checklist_item.is_required if f.checklist_item else True,
+            "status": f.status,
+            "notes": f.notes,
+            "photo_url": f.photo_url,
+            "gps_lat": f.gps_lat,
+            "gps_lng": f.gps_lng,
+            "captured_at": f.captured_at.isoformat() if f.captured_at else None
+        })
+
+    total_evaluated = pass_count + fail_count
+    compliance_score = round((pass_count / total_evaluated * 100), 1) if total_evaluated > 0 else 100.0
+
+    # Geofence validation
+    geofence = {
+        "verified": False,
+        "facility_coords": {"lat": facility.latitude, "lng": facility.longitude} if (facility and facility.latitude) else None,
+        "submission_coords": {"lat": insp.submission_lat, "lng": insp.submission_lng} if insp.submission_lat else None,
+        "distance_meters": None,
+        "threshold_meters": 200.0
+    }
+    if facility and facility.latitude and facility.longitude and insp.submission_lat and insp.submission_lng:
+        dist = calculate_haversine_meters(facility.latitude, facility.longitude, insp.submission_lat, insp.submission_lng)
+        geofence["distance_meters"] = round(dist, 1)
+        geofence["verified"] = dist <= 200.0
+
+    return {
+        "dossier_version": "2.0",
+        "generated_at": datetime.utcnow().isoformat(),
+        "generated_by": current_user.full_name,
+        "inspection": {
+            "id": insp.id,
+            "status": insp.status,
+            "priority": insp.priority,
+            "scheduled_date": str(insp.scheduled_date) if insp.scheduled_date else None,
+            "submission_notes": insp.submission_notes,
+            "submitted_at": insp.submitted_at.isoformat() if insp.submitted_at else None,
+            "supervisor_feedback": insp.supervisor_feedback,
+            "reviewed_at": insp.reviewed_at.isoformat() if insp.reviewed_at else None,
+            "reviewed_by": insp.reviewed_by,
+            "created_at": insp.created_at.isoformat() if insp.created_at else None,
+        },
+        "facility": {
+            "id": facility.id if facility else None,
+            "name": facility.name if facility else "Unknown",
+            "license_no": facility.license_no if facility else None,
+            "category": facility.category if facility else None,
+            "risk_level": facility.risk_level if facility else None,
+            "address": facility.address if facility else None,
+            "contact_person": facility.contact_person if facility else None,
+            "contact_phone": facility.contact_phone if facility else None,
+            "latitude": facility.latitude if facility else None,
+            "longitude": facility.longitude if facility else None,
+        },
+        "inspector": {
+            "id": inspector.id if inspector else None,
+            "name": inspector.full_name if inspector else "Unassigned",
+            "email": inspector.email if inspector else None,
+            "badge_number": inspector.badge_number if inspector else None,
+        },
+        "checklist_template": {
+            "id": template.id if template else None,
+            "title": template.title if template else None,
+            "category": template.category if template else None,
+        },
+        "compliance_summary": {
+            "total_items": len(findings_data),
+            "passed": pass_count,
+            "failed": fail_count,
+            "na": na_count,
+            "score_percentage": compliance_score,
+            "rating": "CRITICAL" if fail_count >= 3 else ("SATISFACTORY" if fail_count == 0 else "ACTION REQUIRED")
+        },
+        "geofence": geofence,
+        "findings": findings_data
+    }
+
