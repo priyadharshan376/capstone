@@ -96,9 +96,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   spacing: 6,
                   runSpacing: 6,
                   children: [
+                    _buildPresetChip('Cloud (4G/5G/Anywhere)', 'https://else-showed-hope-watson.trycloudflare.com/api/v1', urlController, setDialogState),
+                    _buildPresetChip('Wi-Fi', 'http://10.187.110.33:8000/api/v1', urlController, setDialogState),
                     _buildPresetChip('USB Cable', 'http://127.0.0.1:8000/api/v1', urlController, setDialogState),
-                    _buildPresetChip('Wi-Fi Network', 'http://10.187.110.33:8000/api/v1', urlController, setDialogState),
-                    _buildPresetChip('Emulator', 'http://10.0.2.2:8000/api/v1', urlController, setDialogState),
                   ],
                 ),
                 const SizedBox(height: 14),

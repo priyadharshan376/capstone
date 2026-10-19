@@ -17,13 +17,13 @@ class SubmitResult {
 }
 
 class ApiService {
-  // Current active server IP (10.187.110.33) and USB bridge (127.0.0.1)
-  static const String defaultBaseUrl = 'http://10.187.110.33:8000/api/v1';
+  // Public Cloud Tunnel (accessible anywhere on 4G/5G/any Wi-Fi) and local fallbacks
+  static const String defaultBaseUrl = 'https://else-showed-hope-watson.trycloudflare.com/api/v1';
 
   static const List<String> candidateUrls = [
+    'https://else-showed-hope-watson.trycloudflare.com/api/v1',
     'http://10.187.110.33:8000/api/v1',
     'http://127.0.0.1:8000/api/v1',
-    'http://10.90.51.19:8000/api/v1',
     'http://localhost:8000/api/v1',
     'http://10.0.2.2:8000/api/v1',
   ];
