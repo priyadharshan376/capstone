@@ -97,7 +97,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   runSpacing: 6,
                   children: [
                     _buildPresetChip('USB Cable', 'http://127.0.0.1:8000/api/v1', urlController, setDialogState),
-                    _buildPresetChip('Local Network', 'http://10.90.51.19:8000/api/v1', urlController, setDialogState),
+                    _buildPresetChip('Wi-Fi Network', 'http://10.187.110.33:8000/api/v1', urlController, setDialogState),
                     _buildPresetChip('Emulator', 'http://10.0.2.2:8000/api/v1', urlController, setDialogState),
                   ],
                 ),

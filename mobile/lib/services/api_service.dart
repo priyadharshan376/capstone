@@ -17,15 +17,15 @@ class SubmitResult {
 }
 
 class ApiService {
-  // Current active server IP (10.90.51.19) and USB bridge (127.0.0.1)
-  static const String defaultBaseUrl = 'http://10.90.51.19:8000/api/v1';
+  // Current active server IP (10.187.110.33) and USB bridge (127.0.0.1)
+  static const String defaultBaseUrl = 'http://10.187.110.33:8000/api/v1';
 
   static const List<String> candidateUrls = [
-    'http://10.90.51.19:8000/api/v1',
+    'http://10.187.110.33:8000/api/v1',
     'http://127.0.0.1:8000/api/v1',
+    'http://10.90.51.19:8000/api/v1',
     'http://localhost:8000/api/v1',
     'http://10.0.2.2:8000/api/v1',
-    'http://10.128.45.33:8000/api/v1',
   ];
 
   static String? _cachedActiveUrl;
